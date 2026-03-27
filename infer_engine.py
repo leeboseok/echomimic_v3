@@ -3,8 +3,11 @@ import math
 import tempfile
 import shutil
 
+from src.face_detect import get_mask_coord
+
 import numpy as np
 import torch
+from mmgp import offload, profile_type
 from PIL import Image
 from omegaconf import OmegaConf
 from transformers import AutoTokenizer
@@ -19,7 +22,6 @@ from src.wan_text_encoder import WanT5EncoderModel
 from src.wan_transformer3d_audio import WanTransformerAudioMask3DModel
 from src.pipeline_wan_fun_inpaint_audio import WanFunInpaintAudioPipeline
 from src.utils import filter_kwargs, get_image_to_video_latent3, save_videos_grid
-from src.face_detect import get_mask_coord
 
 from infer_preview import Config, load_wav2vec_models, extract_audio_features, get_sample_size, get_ip_mask
 
@@ -73,12 +75,8 @@ class EchoMimicEngine:
         self.vae = vae
 
         # Memory optimization
-        try:
-            from mmgp import offload, profile_type
-            self.pipeline.to("cpu")
-            offload.profile(self.pipeline, profile_type.LowRAM_LowVRAM, quantizeTransformer=True)
-        except ImportError:
-            self.pipeline.to(device=self.device)
+        self.pipeline.to("cpu")
+        offload.profile(self.pipeline, profile_type.LowRAM_LowVRAM, quantizeTransformer=True)
 
         # Wav2Vec2
         self.wav2vec_processor, self.wav2vec_model = load_wav2vec_models(self.config.wav2vec_model_dir)
